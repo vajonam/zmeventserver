@@ -1393,16 +1393,26 @@ sub loadPredefinedConnections {
 # of sendOverMQTTBroker
 sub initMQTT {
     my $mqtt_connection;
+    my $initialized; 
+
     printInfo ("Initializing MQTT connection...");
     if (defined $mqtt_username && defined $mqtt_password)
     {
-        $mqtt_connection = Net::MQTT::Simple::Auth->new($mqtt_server, $mqtt_username, $mqtt_password);
-        printInfo ("Intialized MQTT with auth");
+        if ($mqtt_connection = Net::MQTT::Simple::Auth->new($mqtt_server, $mqtt_username, $mqtt_password)){
+		printInfo ("Intialized MQTT with auth");
+		$initialized = 1;
+	}
     }
     else
     {
-        $mqtt_connection = Net::MQTT::Simple->new($mqtt_server);
-        printInfo ("Intialized MQTT without auth");
+        if ($mqtt_connection = Net::MQTT::Simple->new($mqtt_server)) {
+		printInfo ("Intialized MQTT without auth");
+		$initialized = 1;
+	}
+    }
+	
+    if (! $initialized) {
+	return;	    
     }
 
     my $id = gettimeofday;
@@ -1653,8 +1663,6 @@ sub sendEvent{
     if ($ac->{type}==FCM && $ac->{pushstate} ne "disabled" && $ac->{state} != PENDING_AUTH) {
         printInfo ("Sending notification over FCM");  
         sendOverFCM($alarm, $ac) ;     
-
-        
     }
     elsif ($ac->{type}==WEB && $ac->{state} == VALID_CONNECTION && exists $ac->{conn})
     {
