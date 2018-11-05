@@ -850,12 +850,7 @@ sub sendOverMQTTBroker
                 eventid=> $alarm->{EventId}
             });
     
-    foreach (@active_connections) {
-	  if (exists $_->{mqtt_conn} )
-          {
-    		$_->{mqtt_conn}->publish(join('/','zoneminder',$alarm->{MonitorId}) => $json);
-          }
-    }
+   $ac->{mqtt_conn}->publish(join('/','zoneminder',$alarm->{MonitorId}) => $json);
     
 
 }
@@ -1663,8 +1658,7 @@ sub sendEvent{
     }
     elsif ($ac->{type}==WEB && $ac->{state} == VALID_CONNECTION && exists $ac->{conn})
     {
-         
-                sendOverWebSocket($alarm, $ac);        
+         sendOverWebSocket($alarm, $ac);        
     }
     elsif ($ac->{type}=MQTT) {
          printInfo ("Sending notification over MQTT");
