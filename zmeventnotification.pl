@@ -127,6 +127,7 @@ my $mqtt_server;
 my $mqtt_username;
 my $mqtt_password;
 
+
 my $use_fcm;
 my $fcm_api_key;
 my $token_file;
@@ -447,7 +448,7 @@ if ($use_mqtt)
     {
         if (!try_use ("Net::MQTT::Simple::Auth")) {Fatal ("Net::MQTT::Simple::Auth  missing");exit (-1);}
     }
-    printInfo ("Broadcasting Events to MQTT");
+    printInfo ("MQTT Enabled");
 
 }
 else 
@@ -839,20 +840,8 @@ sub sendOverMQTTBroker
     my $alarm = shift;
     my $ac = shift;
     my $json;
-    my $mqtt;
 
     my $description = $alarm->{Name}.":(".$alarm->{EventId}.") ".$alarm->{Cause};
-
-    if (defined $mqtt_username && defined $mqtt_password)
-    {
-        $mqtt = Net::MQTT::Simple::Auth->new($mqtt_server, $mqtt_username, $mqtt_password);
-    }
-    else 
-    {
-        $mqtt = Net::MQTT::Simple->new($mqtt_server);
-    }
-
-
 
     $json = encode_json ({
                 monitor=> $alarm->{MonitorId},
@@ -860,10 +849,15 @@ sub sendOverMQTTBroker
                 state => 'alarm',
                 eventid=> $alarm->{EventId}
             });
+    
+    foreach (@active_connections) {
+	  if (exists $_->{mqtt_conn} )
+          {
+    		$_->{mqtt_conn}->publish(join('/','zoneminder',$alarm->{MonitorId}) => $json);
+          }
+    }
+    
 
-
-    printDebug("Sending message over MQTT:".$json);
-    $mqtt->publish(join('/','zoneminder',$alarm->{MonitorId}) => $json);
 }
 
 
@@ -1403,7 +1397,19 @@ sub loadPredefinedConnections {
 # If it makes sense to keep this persistent, we can do the init here instead
 # of sendOverMQTTBroker
 sub initMQTT {
+    my $mqtt_connection;
     printInfo ("Initializing MQTT connection...");
+    if (defined $mqtt_username && defined $mqtt_password)
+    {
+        $mqtt_connection = Net::MQTT::Simple::Auth->new($mqtt_server, $mqtt_username, $mqtt_password);
+        printInfo ("Intialized MQTT with auth");
+    }
+    else
+    {
+        $mqtt_connection = Net::MQTT::Simple->new($mqtt_server);
+        printInfo ("Intialized MQTT without auth");
+    }
+
     my $id = gettimeofday;
     my $connect_time = time();
     push @active_connections, {
@@ -1413,6 +1419,7 @@ sub initMQTT {
         monlist => "",
         intlist => "",
         last_sent=>{},
+	mqtt_conn=>$mqtt_connection,
     };
 }
 
